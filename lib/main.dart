@@ -1,105 +1,194 @@
-
-import 'dart:io';
-import 'package:animated_splash_screen/animated_splash_screen.dart';
-import 'package:crm/view/Lead/AddLeadView.dart';
-import 'package:crm/view/Lead/ManageLead.dart';
-import 'package:crm/view/customer/AddCustomer.dart';
-import 'package:crm/view/customer/ManageCustomer.dart';
-import 'package:crm/view/invoice/addInvoice.dart';
-import 'package:crm/view/proposal/AddProposalView.dart';
-import 'package:crm/window/LoginView.dart';
-import 'package:crm/window/SplashView.dart';
+import 'dart:async';
+import 'package:call_log/call_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_navigation/src/root/get_material_app.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'appcomman/AppColor.dart';
-import 'appcomman/AppFont.dart';
-import 'appcomman/AppRoute.dart';
+import 'package:td_crm/util/appImage.dart';
+import 'package:td_crm/util/route_helper.dart';
+import 'package:workmanager/workmanager.dart';
+import 'Controller/AgentController/Authcontroller.dart';
+import 'Screens/Auth/LoginPage.dart';
+import 'Screens/Home/HomePage.dart';
+import 'Screens/Home/MainHomePage.dart';
+import 'util/get.di.dart' as di;
 
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((dynamic task, dynamic inputData) async {
+    print('✅ Background Task Running...');
 
-void main() {
-  SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarIconBrightness: Brightness.light, // this will change the brightness of the icons
-        statusBarColor: primary, // or any color you want
-      ));
+    try {
+      final Iterable<CallLogEntry> callLogs = await CallLog.get();
+      final filteredLogs = callLogs.where((entry) => entry.number == '+9190981444014');
+
+      for (CallLogEntry entry in filteredLogs) {
+        print('📞 NUMBER: ${entry.number}, NAME: ${entry.name}');
+      }
+
+      return Future.value(true);
+    } catch (e, s) {
+      print('❌ Error: $e');
+      print(s);
+      return Future.value(false);
+    }
+  });
+}
+
+void main() async{
   WidgetsFlutterBinding.ensureInitialized();
+  //SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent, // Transparent background
+      statusBarIconBrightness: Brightness.dark, // Dark icons
+      statusBarBrightness: Brightness.light, // iOS compatibility
+    ),
+  );
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
 
+  ]);
+  final sharedPreferences = await SharedPreferences.getInstance();
+  Get.put<SharedPreferences>(sharedPreferences); // Ensure this is registered first
+  await di.init();
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter is initialized
+  Workmanager().initialize(
+    callbackDispatcher,
+    isInDebugMode: true, // Debug mode on
+  );
 
   runApp(const MyApp());
+
 }
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
-  State<StatefulWidget> createState() =>_MyApp();
+  State<StatefulWidget> createState()=>_MyApp();
 
 
 }
 
 class _MyApp extends State<MyApp> {
 
+  final AuthController authController = Get.find<AuthController>();
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
+    //authController = Get.find<AuthController>();
+    if(authController.isLoggedIn()){
+      Get.find<AuthController>().getProfile();
+      //Get.find<AuthController>().GetDashboard(authController.profileResponse!.data!.type.toString());
+    }
+    SystemChannels.textInput.invokeMethod("TextInput.hide");
+    Timer(Duration(seconds: 3), () {
+      LoadingAnimationWidget.hexagonDots(
+        color: Colors.black,
+        size: 10,
+      );
+      authController.isLoggedIn() ?
+      Get.to(HomePage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100)):
+      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
 
-    SharedPreferences.getInstance().then((sp) {
-      SystemChannels.textInput.invokeMethod('TextInput.hide');
+     // Get.to(LoginPage());
+    },);
+  }
+  Future<void> _initializeApp() async {
+    await Future.delayed(Duration(seconds: 2));
 
-      setState((){});
+    final isLoggedIn = authController.isLoggedIn();
 
+    if (!isLoggedIn) {
+      Get.offAll(() => LoginPage());
+      return;
+    }
 
-    });
+    try {
+      await authController.getProfile();
+
+      // If status is invalid, assume token expired or invalid
+      if (authController.profileResponse == null ||
+          authController.profileResponse!.status != "200") {
+        // Clear stored token
+        final prefs = Get.find<SharedPreferences>();
+        await prefs.remove("token");
+
+        Get.offAll(() => LoginPage());
+      } else {
+        // Token is valid
+        Get.offAll(() => HomePage());
+      }
+    } catch (e) {
+      // In case of any other error
+      Get.offAll(() => LoginPage());
+    }
   }
 
-  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: "LeadInSide",
-      debugShowCheckedModeBanner: false,
-      navigatorKey: NavigationService.instance.navigationKey,
-      theme: ThemeData(
-        fontFamily: primaryFont,
-        bottomSheetTheme: BottomSheetThemeData(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero
-          )
+    return GetMaterialApp(
+        title: 'TDCRM APP',
+        debugShowCheckedModeBanner: false,
+        builder: (context, child) {
+          return MediaQuery(
+            child: child!,
+            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1.0)),
+          );
+        },
+        getPages: RouteHelper.routes,
+        navigatorKey: Get.key,
+        theme: ThemeData(
+          appBarTheme: AppBarTheme(
+              backgroundColor: Colors.black12
+          ),
         ),
 
-        primarySwatch: Colors.blue,
-        appBarTheme: AppBarTheme(
-          backgroundColor: primary
-        )
-      ),
-      routes: {
-        "/login": (BuildContext context) =>  const LoginView(),
-        "/manageCustomer": (BuildContext context) =>  const ManageCustomer(),
-        "/manageLead": (BuildContext context) =>  const ManageLead(),
-        "/addLead": (BuildContext context) =>   AddLeadView(),
-        "/addCustomer": (BuildContext context) =>  const AddCustomer(),
-        "/addInvoice": (BuildContext context) =>  const AddInvoice(),
-        "/addProposalView": (BuildContext context) =>  const AddProposalView(),
+        // getPages: RouteHelper.routes,
+        home: Container(
 
-      },
-      home:  AnimatedSplashScreen(
-        splash: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: Image.asset("images/logo.png"),
-        ),
-        splashIconSize: 180,
-        curve: Curves.bounceIn,
-        backgroundColor: primary,
+          child: Scaffold(
+            //backgroundColor: Colors.white,
+            body: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.bottomCenter,
+                  radius: 1,
+                  focal: Alignment.topCenter,
+                  focalRadius: 0.5,
+                  colors: [
+                    Color(0xFFFFFFFF),
+                    Color(0xFF5F71CF),
 
-        nextScreen: LoginView(),
+                  ],
+                  //stops: [0,1.0], // Position stops for each color
+                ),),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
 
-      ),
+                    Image.asset(
+                      AppImage.splashLogo,
+                      height: 80,
+                      width: 150,
+                    ),
+                    SizedBox(height: 40,),
 
-    );
+                    LoadingAnimationWidget.hexagonDots(
+                      color: Colors.white,
+                      size: 40, // Adjust size as needed
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ));
   }
 }
-
-

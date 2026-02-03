@@ -2,32 +2,134 @@ import 'dart:io';
 
 import 'package:get/get_connect/http/src/response/response.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as Http;
 
 import '../../api/api.dart';
 import '../../api/api_client.dart';
 import '../../util/app_constants.dart';
 
-class AuthRepo{
+class AuthRepo {
   final ApiClient apiClient;
   final SharedPreferences sharedPreferences;
   AuthRepo({required this.apiClient, required this.sharedPreferences});
 
-  Future<Response> login({required String email,required String? password}) async {
-    return await apiClient.postData(
-        ApiUrls.Signin, {
-          "email": email!,
+  Future<Response> login({
+    required String email,
+    required String? password,
+  }) async {
+    return await apiClient.postData(ApiUrls.Signin, {
+      "email": email!,
       "password": password!,
     });
   }
 
-  Future<Response> Dashboards({
-    required String type,
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.dashboard, {
-          "type": type!,
+  Future<Response> Dashboards({required String type}) async {
+    String userRole = getUserRole().toLowerCase();
+    String userType = getUserType().toLowerCase();
+
+    print(
+      "🔍 Dashboard API - Received type param: $type, "
+      "Stored user type: $userType, Stored user role: $userRole",
+    );
+
+    String apiUrl;
+
+    /// ✅ ONLY THIS CONDITION can call HR dashboard
+    if (userRole == "hr" && userType == "manager") {
+      apiUrl = ApiUrls.dashboardHr;
+      print("✅ Condition matched: manager + hr → dashboardHr");
+
+    }else if (userRole == "hr" && userType == "user") {
+      apiUrl = ApiUrls.dashboard;
+      print("✅ Condition matched: user + sales → dashboardSales");
+
+    } else if (userRole == "sales" && userType == "user") {
+      apiUrl = ApiUrls.dashboard;
+      print("✅ Condition matched: user + sales → dashboardSales");
+
+    } else if (userRole == "sales" && userType == "manager") {
+      apiUrl = ApiUrls.dashboard;
+      print("✅ Condition matched: user + sales → dashboardSales");
+
+    }else if (userRole == "developer" && userType == "manager") {
+      apiUrl = ApiUrls.dashboard;
+      print("✅ Condition matched: user + sales → dashboardSales");
+      print("⚠️❌❌❌❌❌ This is a dummy API URL. This API is not valid for this flow because the actual API has not been created yet.❌❌❌❌");
+
+    }else if (userRole == "developer" && userType == "user") {
+      apiUrl = ApiUrls.dashboard;
+      print("✅ Condition matched: user + sales → dashboardSales");
+      print("⚠️❌❌❌❌❌ This is a dummy API URL. This API is not valid for this flow because the actual API has not been created yet.❌❌❌❌");
+
+    } else {
+      apiUrl = ApiUrls.dashboard;
+      print("➡️ Normal dashboard selected");
+    }
+
+    /// Request body
+    Map<String, dynamic> requestBody = {"type": userType};
+
+    /// HR dashboard needs role
+    if (apiUrl == ApiUrls.dashboardHr) {
+      requestBody["role"] = userRole;
+      print("📊 HR Dashboard request includes role: $userRole");
+    }
+
+    print("🎯 Dashboard API called: $apiUrl with body: $requestBody");
+
+    return await apiClient.postData(apiUrl, requestBody);
+  }
+
+  Future<Response> AddUser({
+    required String fname,
+    required String email,
+    required String mobile,
+    required String password,
+  }) async {
+    print(
+      'API Request: Adding user with fname: $fname, email: $email, mobile: $mobile',
+    );
+
+    Response response = await apiClient.postData(ApiUrls.addUser, {
+      "fname": fname,
+      "email": email,
+      "mobile": mobile,
+      "password": password,
     });
+
+    print(
+      'API Response: addUser - Status: ${response.statusCode}, Body: ${response.body}',
+    );
+    return response;
+  }
+
+  Future<Response> AllHrUser({
+    required String fname,
+    required String mobile,
+    required String email,
+    required String keyword,
+    required String limit,
+    required String offset,
+    required String status,
+  }) async {
+    print(
+      'API Request: Fetching HR users with fname: $fname, email: $email, mobile: $mobile, keyword: $keyword',
+    );
+
+    Response response = await apiClient.postData(ApiUrls.allUser, {
+      "fname": fname,
+      "mobile": mobile,
+      "email": email,
+      "keyword": keyword,
+      "limit": limit,
+      "offset": offset,
+      "status": status,
+    });
+
+    print(
+      'API Response: AllHrUser - Status: ${response.statusCode}, Body: ${response.body}',
+    );
+    return response;
   }
 
   Future<Response> AddClient({
@@ -41,17 +143,16 @@ class AuthRepo{
     required String skype,
     required String comment,
   }) async {
-    return await apiClient.postData(
-        ApiUrls.Addclient, {
-          "name": name!,
-          "email": email!,
-          "new_email": new_email!,
-          "mobile": mobile!,
-          "new_mobile": new_mobile!,
-          "location": location!,
-          "source": source!,
-          "skype": skype!,
-          "comment": comment!,
+    return await apiClient.postData(ApiUrls.Addclient, {
+      "name": name!,
+      "email": email!,
+      "new_email": new_email!,
+      "mobile": mobile!,
+      "new_mobile": new_mobile!,
+      "location": location!,
+      "source": source!,
+      "skype": skype!,
+      "comment": comment!,
     });
   }
 
@@ -67,70 +168,49 @@ class AuthRepo{
     required String skype,
     required String comment,
   }) async {
-    return await apiClient.postData(
-        ApiUrls.Updateclient, {
-          "client_id": client_id!,
-          "name": name!,
-          "email": email!,
-          "new_email": new_email!,
-          "mobile": mobile!,
-          "new_mobile": new_mobile!,
-          "location": location!,
-          "source": source!,
-          "skype": skype!,
-          "source": source!,
+    return await apiClient.postData(ApiUrls.Updateclient, {
+      "client_id": client_id!,
+      "name": name!,
+      "email": email!,
+      "new_email": new_email!,
+      "mobile": mobile!,
+      "new_mobile": new_mobile!,
+      "location": location!,
+      "source": source!,
+      "skype": skype!,
+      "source": source!,
     });
   }
 
   Future<Response> ChangeStatus({
     required String client_id,
     required String status,
-
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Changestatus, {
-          "client_id": client_id!,
-          "status": status!,
-
+  }) async {
+    return await apiClient.postData(ApiUrls.Changestatus, {
+      "client_id": client_id!,
+      "status": status!,
     });
   }
 
-  Future<Response> Allcomments({
-    required String client_id,
-
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Allcomments, {
-          "client_id": client_id!,
-
+  Future<Response> Allcomments({required String client_id}) async {
+    return await apiClient.postData(ApiUrls.Allcomments, {
+      "client_id": client_id!,
     });
   }
 
-  Future<Response> ClientDetails({
-    required String client_id,
-
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Clientdetails, {
-          "client_id": client_id!,
-
+  Future<Response> ClientDetails({required String client_id}) async {
+    return await apiClient.postData(ApiUrls.Clientdetails, {
+      "client_id": client_id!,
     });
   }
 
   Future<Response> SetReminder({
     required String client_id,
     required String reminder_date,
-
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Setreminder, {
-          "client_id": client_id!,
-          "reminder_date": reminder_date!,
-
+  }) async {
+    return await apiClient.postData(ApiUrls.Setreminder, {
+      "client_id": client_id!,
+      "reminder_date": reminder_date!,
     });
   }
 
@@ -142,11 +222,8 @@ class AuthRepo{
     required String client_mobile,
     required String client_name,
     required String calling_platform,
-
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Whatapps, {
+  }) async {
+    return await apiClient.postData(ApiUrls.Whatapps, {
       "client_id": client_id!,
       "whatsapp_count": whatsapp_count!,
       "calling_date": calling_date!,
@@ -154,7 +231,6 @@ class AuthRepo{
       "client_mobile": client_mobile!,
       "client_name": client_name!,
       "calling_platform": calling_platform!,
-
     });
   }
 
@@ -168,11 +244,8 @@ class AuthRepo{
     required String calling_platform,
     required String calling_type,
     required String call_duration_in_second,
-
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Call, {
+  }) async {
+    return await apiClient.postData(ApiUrls.Call, {
       "client_id": client_id!,
       "calling_count": calling_count!,
       "calling_date": calling_date!,
@@ -181,7 +254,6 @@ class AuthRepo{
       "client_name": client_name!,
       "calling_platform": calling_platform!,
       "calling_type": calling_type!,
-
     });
   }
 
@@ -194,11 +266,8 @@ class AuthRepo{
     required String client_email,
     required String client_name,
     required String calling_platform,
-
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Addgmails, {
+  }) async {
+    return await apiClient.postData(ApiUrls.Addgmails, {
       "client_id": client_id!,
       "gmail_count": gmail_count!,
       "calling_date": calling_date!,
@@ -207,29 +276,21 @@ class AuthRepo{
       "client_email": client_email!,
       "client_name": client_name!,
       "calling_platform": calling_platform!,
-
-
     });
   }
 
   Future<Response> AddComment({
     required String client_id,
     required String comment,
-
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Allcomment, {
+  }) async {
+    return await apiClient.postData(ApiUrls.Allcomment, {
       "client_id": client_id!,
       "comment": comment!,
-
-
     });
   }
 
   Future<Response> Profile() async {
-    return await apiClient.getData(
-        ApiUrls.ProfileData);
+    return await apiClient.getData(ApiUrls.ProfileData);
   }
 
   Future<Response> AllClient({
@@ -246,10 +307,8 @@ class AuthRepo{
     required String limit,
     required String offset,
     required String agent_id,
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Allclient, {
+  }) async {
+    return await apiClient.postData(ApiUrls.Allclient, {
       "fname": fname!,
       "mobile": mobile!,
       "email": email!,
@@ -280,10 +339,8 @@ class AuthRepo{
     required String limit,
     required String offset,
     required String agent_id,
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.flowupClient, {
+  }) async {
+    return await apiClient.postData(ApiUrls.flowupClient, {
       "name": name!,
       "mobile": mobile!,
       "email": email!,
@@ -307,10 +364,8 @@ class AuthRepo{
     required String status,
     required String limit,
     required String offset,
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.AllUserList, {
+  }) async {
+    return await apiClient.postData(ApiUrls.AllUserList, {
       "name": name!,
       "mobile": mobile!,
       "email": email!,
@@ -324,15 +379,11 @@ class AuthRepo{
     required String from_date,
     required String to_date,
     required String agent_id,
-
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Allactivity, {
+  }) async {
+    return await apiClient.postData(ApiUrls.Allactivity, {
       "from_date": from_date!,
       "to_date": to_date!,
       "agent_id": agent_id!,
-
     });
   }
 
@@ -341,16 +392,12 @@ class AuthRepo{
     required String to_date,
     required String agent_id,
     required String calling_type,
-
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.AllDetailsactivity, {
+  }) async {
+    return await apiClient.postData(ApiUrls.AllDetailsactivity, {
       "from_date": from_date!,
       "to_date": to_date!,
       "agent_id": agent_id!,
       "calling_type": calling_type!,
-
     });
   }
 
@@ -364,10 +411,8 @@ class AuthRepo{
     required String calling_platform,
     required String calling_type,
     required String search,
-  })
-  async {
-    return await apiClient.postData(
-        ApiUrls.Callhistory, {
+  }) async {
+    return await apiClient.postData(ApiUrls.Callhistory, {
       "name": name!,
       "mobile": mobile!,
       "email": email!,
@@ -380,27 +425,20 @@ class AuthRepo{
     });
   }
 
-
   Future<Response> CallMultiPle({
     required List<Map<String, dynamic>> multiplecallData, // updated param
   }) async {
-    return await apiClient.postData(
-      ApiUrls.MultipleCall,
-      {
-        "data": multiplecallData, // sending in required format
-      },
-    );
+    return await apiClient.postData(ApiUrls.MultipleCall, {
+      "data": multiplecallData, // sending in required format
+    });
   }
-
 
   Future<Response> getAllChatUsers(int userId) async {
     print('API Call: ${ApiUrls.ChatAlluser} with userId: $userId');
     Response response = await apiClient.postDataOther(
-        ApiUrls.ChatAlluser, // This uses the full URL with BASE_URL2
-        {
-          "user_id": userId,
-        },
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      ApiUrls.ChatAlluser, // This uses the full URL with BASE_URL2
+      {"user_id": userId},
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     );
     print('API Response received: Status ${response.statusCode}');
     return response;
@@ -409,36 +447,47 @@ class AuthRepo{
   Future<Response> getChatHistory({required int user2, required int id}) async {
     print('API Call: ${ApiUrls.ChatHistory} with user2: $user2, id: $id');
     Response response = await apiClient.postDataOther(
-        ApiUrls.ChatHistory,
-        {
-          "user1": id,      // from user id
-          "user2": user2,    // to user id 
-          "id": id,         // login user id
-        },
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      ApiUrls.ChatHistory,
+      {
+        "user1": id, // from user id
+        "user2": user2, // to user id
+        "id": id, // login user id
+      },
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     );
     print('API Response received: Status ${response.statusCode}');
     return response;
   }
 
-  Future<bool>saveUserPassword(String password)
-  async{
+  Future<bool> saveUserPassword(String password) async {
     return await sharedPreferences.setString(password, password);
   }
 
-
   Future<bool> saveUserToken(String token, [int? userId]) async {
     apiClient.token = token;
-    apiClient.updateHeader(
-        token);
+    apiClient.updateHeader(token);
     await sharedPreferences.setString(AppContants.token, token);
-    
+
     // Save user ID if provided
     if (userId != null) {
       await sharedPreferences.setInt('user_id', userId);
     }
-    
+
     return true;
+  }
+
+  Future<bool> saveUserTypeAndRole(String type, String role) async {
+    await sharedPreferences.setString(AppContants.userType, type);
+    await sharedPreferences.setString(AppContants.userRole, role);
+    return true;
+  }
+
+  String getUserType() {
+    return sharedPreferences.getString(AppContants.userType) ?? "";
+  }
+
+  String getUserRole() {
+    return sharedPreferences.getString(AppContants.userRole) ?? "";
   }
 
   bool isLoggedIn() {
@@ -446,7 +495,6 @@ class AuthRepo{
   }
 
   bool clearSharedData() {
-
     apiClient.token = null;
     sharedPreferences.clear();
     apiClient.updateHeader("");
@@ -455,37 +503,165 @@ class AuthRepo{
 
   Future<Response> uploadChatImage(String imagePath) async {
     print('API Call: Uploading image to ${ApiUrls.chatImageUpload}');
-    
+
     Response response = await apiClient.uploadImage(
       ApiUrls.chatImageUpload,
       imagePath,
     );
-    
-    print('Image Upload API Response: Status ${response.statusCode}, Body: ${response.body}');
+
+    print(
+      'Image Upload API Response: Status ${response.statusCode}, Body: ${response.body}',
+    );
     return response;
   }
-  
+
   Future<Response> getAllNotifications() async {
-    print('API Request: Getting all notifications from ${ApiUrls.AllNotification}');
-    Response response = await apiClient.getData(
-        ApiUrls.AllNotification);
-    print('API Response: getAllNotifications - Status: ${response.statusCode}, Body: ${response.body}');
+    print(
+      'API Request: Getting all notifications from ${ApiUrls.AllNotification}',
+    );
+    Response response = await apiClient.getData(ApiUrls.AllNotification);
+    print(
+      'API Response: getAllNotifications - Status: ${response.statusCode}, Body: ${response.body}',
+    );
     return response;
   }
-  
+
   Future<Response> getNotificationCount() async {
-    print('API Request: Getting notification count from ${ApiUrls.AllNotificationCounter}');
-    Response response = await apiClient.getData(
-        ApiUrls.AllNotificationCounter);
-    print('API Response: getNotificationCount - Status: ${response.statusCode}, Body: ${response.body}');
+    print(
+      'API Request: Getting notification count from ${ApiUrls.AllNotificationCounter}',
+    );
+    Response response = await apiClient.getData(ApiUrls.AllNotificationCounter);
+    print(
+      'API Response: getNotificationCount - Status: ${response.statusCode}, Body: ${response.body}',
+    );
     return response;
   }
-  
+
   Future<Response> markAllNotificationRead() async {
-    print('API Request: Marking all notifications as read from ${ApiUrls.MarkNotification}');
-    Response response = await apiClient.getData(
-        ApiUrls.MarkNotification);
-    print('API Response: markAllNotificationRead - Status: ${response.statusCode}, Body: ${response.body}');
+    print(
+      'API Request: Marking all notifications as read from ${ApiUrls.MarkNotification}',
+    );
+    Response response = await apiClient.getData(ApiUrls.MarkNotification);
+    print(
+      'API Response: markAllNotificationRead - Status: ${response.statusCode}, Body: ${response.body}',
+    );
+    return response;
+  }
+
+  Future<Response> uploadResume(String filePath) async {
+    print(
+      'API Request: Uploading resume from $filePath to ${ApiUrls.uploadResume}',
+    );
+
+    try {
+      // Use the new uploadFile method with 'resume' field name
+      Response response = await apiClient.uploadFile(
+        ApiUrls.uploadResume,
+        filePath,
+        'resume', // Form field name as specified
+      );
+
+      print(
+        'Resume Upload API Response: Status ${response.statusCode}, Body: ${response.body}',
+      );
+      return response;
+    } catch (e) {
+      print('Resume Upload Error: ${e.toString()}');
+      return Response(
+        statusCode: 1,
+        statusText: 'Upload failed: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<Response> addCandidate({
+    required String name,
+    required String email,
+    required String number,
+    required String countryCode,
+    required String countryName,
+    required String position,
+    required String resume,
+    required String interviewDate,
+    required String currentCtc,
+    required String expectedCtc,
+    required String exp,
+    required String remark,
+    required String status,
+  }) async {
+    print('API Request: Adding candidate with data:');
+    print('  Name: $name');
+    print('  Email: $email');
+    print('  Number: $number');
+    print('  Country Code: $countryCode');
+    print('  Country Name: $countryName');
+    print('  Position: $position');
+    print('  Resume: $resume');
+    print('  Interview Date: $interviewDate');
+    print('  Current CTC: $currentCtc');
+    print('  Expected CTC: $expectedCtc');
+    print('  Experience: $exp');
+    print('  Remark: $remark');
+    print('  Status: $status');
+
+    Response response = await apiClient.postData(ApiUrls.addCandidate, {
+      "name": name,
+      "email": email,
+      "number": number,
+      "country_code": countryCode,
+      "country_name": countryName,
+      "position": position,
+      "resume": resume,
+      "interview_date": interviewDate,
+      "current_ctc": currentCtc,
+      "expected_ctc": expectedCtc,
+      "exp": exp,
+      "remark": remark,
+      "status": status,
+    });
+
+    print(
+      'API Response: addCandidate - Status: ${response.statusCode}, Body: ${response.body}',
+    );
+    return response;
+  }
+
+  Future<Response> getCandidateList() async {
+    print('API Request: Fetching candidate list from ${ApiUrls.showCandidate}');
+
+    Response response = await apiClient.getData(ApiUrls.showCandidate);
+
+    print('API Response: getCandidateList - Status: ${response.statusCode}');
+    print('API Response Body: ${response.body}');
+
+    return response;
+  }
+
+  Future<Response> UpdateHrUserStatus({
+    required String user_id,
+    required String status,
+  }) async {
+    print(
+      'API Request: Updating HR User Status. UserID: $user_id, Status: $status',
+    );
+    Response response = await apiClient.postData(ApiUrls.updateUser, {
+      "user_id": user_id,
+      "status": status,
+    });
+    print(
+      'API Response: UpdateHrUserStatus - Status: ${response.statusCode}, Body: ${response.body}',
+    );
+    return response;
+  }
+
+  Future<Response> DeleteHrUser({required String user_id}) async {
+    print('API Request: Deleting HR User. UserID: $user_id');
+    Response response = await apiClient.postData(ApiUrls.deleteUser, {
+      "user_id": user_id,
+    });
+    print(
+      'API Response: DeleteHrUser - Status: ${response.statusCode}, Body: ${response.body}',
+    );
     return response;
   }
 }

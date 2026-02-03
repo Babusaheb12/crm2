@@ -1,4 +1,3 @@
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -19,40 +18,38 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   @override
-
   TextEditingController username = TextEditingController();
   TextEditingController password = TextEditingController();
   bool isVisible = true;
   bool _isChacked = false;
+
   void initState() {
-  // TODO: implement initState
-  super.initState();
-  _simulateLoading();
+    // TODO: implement initState
+    super.initState();
+    _simulateLoading();
 
-  WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-
-
-  setState(() {
-
-  });
-  });
-
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      setState(() {});
+    });
   }
 
   bool _isLoading = true;
+
   void _simulateLoading() async {
-  await Future.delayed(Duration(seconds: 5));
-  setState(() {
-  _isLoading = false;
-  });
+    await Future.delayed(Duration(seconds: 5));
+    setState(() {
+      _isLoading = false;
+    });
   }
+
   @override
   Widget build(BuildContext context) {
-  return  Scaffold(
-  body: GetBuilder<AuthController>(builder: (authController) {
-    return Container(
-    decoration: BoxDecoration(
-      /*gradient: RadialGradient(
+    return Scaffold(
+      body: GetBuilder<AuthController>(
+        builder: (authController) {
+          return Container(
+            decoration: BoxDecoration(
+              /*gradient: RadialGradient(
         center: Alignment.bottomCenter,
         radius: 1.5,
         focal: Alignment.topCenter,
@@ -64,123 +61,148 @@ class _LoginPageState extends State<LoginPage> {
         ],
         //stops: [0,1.0], // Position stops for each color
       ),*/
-      color: AppColor.ButtonColor2
-    ),
-    child:Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10,horizontal: 25),
-      child: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            //mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Center(
-                child: Image.asset(
-                  AppImage.splashLogo,
-                  height: 80,
-                  width: 200,
-                  color: Colors.white,
-
-                ),
-              ),
-              SizedBox(height: 10,),
-              Center(
-                  child: Text("Login to your account",style: TextStyle(fontSize: 18,fontFamily:"Poppins",color: Colors.white,fontWeight: FontWeight.w600),)),
-              SizedBox(height: 25,),
-              Container(
-                width: double.infinity,
-                height: 40,
-                decoration: BoxDecoration(
-                  borderRadius:  BorderRadius.circular(10),
-                  color: AppColor.TextfeildColor,
-
-                ),
-                child: TextField(
-                  controller : username,
-                  cursorColor:AppColor.AuthhintColor,
-
-                  //maxLength: 10,
-                  keyboardType: TextInputType.name,
-                  style: TextStyle(color: Colors.black,fontSize: 14,fontFamily:"Poppins"),
-
-                  decoration: InputDecoration(
-                    counterText:'',
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius:  BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color : AppColor.TextfeildColor,
-
+              color: AppColor.ButtonColor2,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 25),
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    //mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Center(
+                        child: Image.asset(
+                          AppImage.splashLogo,
+                          height: 80,
+                          width: 200,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color : AppColor.TextfeildColor,
-                        )
-                    ),
-                    contentPadding: EdgeInsets.symmetric(vertical: 5,horizontal: 10),
-                    hintText: "Email",
-                    hintStyle: TextStyle(fontSize:14,color: AppColor.AuthhintColor,fontFamily:"Poppins",fontWeight: FontWeight.w400),
-
-
-                  ),
-                ),
-              ),
-              SizedBox(height: 10,),
-              Container(
-                width: double.infinity,
-                height: 40,
-                decoration: BoxDecoration(
-                  borderRadius:  BorderRadius.circular(10),
-                  color: AppColor.TextfeildColor,
-
-                ),
-                child: TextField(
-                  controller : password,
-                  cursorColor:AppColor.AuthhintColor,
-
-                  obscuringCharacter: '*',
-                  obscureText: isVisible,
-                  style: TextStyle(color: Colors.black,fontSize: 14,fontFamily:"Poppins"),
-
-                  decoration: InputDecoration(
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius:  BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                        color : AppColor.TextfeildColor,
-
+                      SizedBox(height: 10),
+                      Center(
+                        child: Text(
+                          "Login to your account",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontFamily: "Poppins",
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color :AppColor.TextfeildColor,
-                        )
-                    ),
-                    contentPadding: EdgeInsets.symmetric(vertical: 5,horizontal: 10),
+                      SizedBox(height: 25),
+                      Container(
+                        width: double.infinity,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: AppColor.TextfeildColor,
+                        ),
+                        child: TextField(
+                          controller: username,
+                          cursorColor: AppColor.AuthhintColor,
 
-                    //prefixIcon:Icon(Icons.lock,color: Colors.white, size: 20,),
-                    hintText:"Password",
-                    hintStyle: TextStyle(fontSize:14,color: AppColor.AuthhintColor,fontFamily:"Poppins",fontWeight: FontWeight.w400),
-                    suffixIcon: IconButton(
-                                icon: Icon(isVisible ? Icons.remove_red_eye_outlined:CupertinoIcons.eye_slash_fill, color: AppColor.toogaletext,size: 20,),
-                                onPressed: () {
-                                  isVisible = !isVisible;
+                          //maxLength: 10,
+                          keyboardType: TextInputType.name,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontFamily: "Poppins",
+                          ),
 
-                                  setState(() {
-
-                                  });
-
-
-
-                                },
-
+                          decoration: InputDecoration(
+                            counterText: '',
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: AppColor.TextfeildColor,
                               ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: AppColor.TextfeildColor,
+                              ),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              vertical: 5,
+                              horizontal: 10,
+                            ),
+                            hintText: "Email",
+                            hintStyle: TextStyle(
+                              fontSize: 14,
+                              color: AppColor.AuthhintColor,
+                              fontFamily: "Poppins",
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: AppColor.TextfeildColor,
+                        ),
+                        child: TextField(
+                          controller: password,
+                          cursorColor: AppColor.AuthhintColor,
 
-                  ),
-                ),
-              ),
-              /*SizedBox(height: 10,),
+                          obscuringCharacter: '*',
+                          obscureText: isVisible,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontFamily: "Poppins",
+                          ),
+
+                          decoration: InputDecoration(
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: AppColor.TextfeildColor,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: AppColor.TextfeildColor,
+                              ),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              vertical: 5,
+                              horizontal: 10,
+                            ),
+
+                            //prefixIcon:Icon(Icons.lock,color: Colors.white, size: 20,),
+                            hintText: "Password",
+                            hintStyle: TextStyle(
+                              fontSize: 14,
+                              color: AppColor.AuthhintColor,
+                              fontFamily: "Poppins",
+                              fontWeight: FontWeight.w400,
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                isVisible
+                                    ? Icons.remove_red_eye_outlined
+                                    : CupertinoIcons.eye_slash_fill,
+                                color: AppColor.toogaletext,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                isVisible = !isVisible;
+
+                                setState(() {});
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      /*SizedBox(height: 10,),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -193,48 +215,56 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ],
               ),*/
-              SizedBox(height: 30,),
-              Center(
-                child: Container(
-                    width: double.infinity,
-                    height: 47,
-                    child: ElevatedButton(
-                      style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(AppColor.ButtonColor),
-                          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                              RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              )
-                          )
+                      SizedBox(height: 30),
+                      Center(
+                        child: Container(
+                          width: double.infinity,
+                          height: 47,
+                          child: ElevatedButton(
+                            style: ButtonStyle(
+                              backgroundColor: MaterialStateProperty.all(
+                                AppColor.ButtonColor,
+                              ),
+                              shape: MaterialStateProperty.all<
+                                RoundedRectangleBorder
+                              >(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                            onPressed: () {
+                              String uUsername = username.text;
+                              String uPassword = password.text;
+
+                              print('username:$uUsername,Pass: $uPassword');
+                              if (username.text.isEmpty) {
+                                showCustomSnackBar(
+                                  "Enter email & password",
+                                  getXSnackBar: false,
+                                  isError: true,
+                                );
+                              } else {
+                                authController.LoginResponceFunction(
+                                  username.text,
+                                  password.text,
+                                );
+                              }
+                            },
+                            child: Text(
+                              "Sign in",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                fontFamily: "Montserrat",
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      onPressed: () {
-                        String uUsername = username.text;
-                        String uPassword = password.text;
-
-
-                        print('username:$uUsername,Pass: $uPassword');
-                        if(username.text.isEmpty)
-                        {
-                          showCustomSnackBar("Enter email & password", getXSnackBar: false,isError: true);
-                        }
-                        else
-                        {
-
-                          authController.LoginResponceFunction(username.text, password.text);
-
-
-
-
-
-                        }
-                      },
-                      child:
-                      Text("Sign in",style: TextStyle(color: Colors.white,fontSize: 14,fontWeight: FontWeight.w500,fontFamily:"Montserrat")),
-                    )
-                ),
-              ),
-              SizedBox(height: 15,),
-            /*  Row(
+                      SizedBox(height: 15),
+                      /*  Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Expanded(
@@ -286,15 +316,14 @@ class _LoginPageState extends State<LoginPage> {
                     )
                 ),
               ),*/
-            ],
-          ),
-        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
-    ),
-  );}),
-
-  );
+    );
   }
-  }
-
-
+}

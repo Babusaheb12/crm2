@@ -40,7 +40,8 @@ class _PofileuserState extends State<Pofileuser> {
           ),
           leading:InkWell(
               onTap: (){
-                Get.back();
+                // Get.back();
+                Navigator.pop(context); // 👈 pop this screen
 
               },
               child: Icon(Icons.arrow_back_ios_new,color: Colors.white,size: 22,)),

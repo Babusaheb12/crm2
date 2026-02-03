@@ -46,13 +46,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   void initState() {
     super.initState();
-    sendCallLogsToAPI();
     _maybeSaveClientType();
     _loadClientId();
     _handleClientId();
-  
+
     WidgetsBinding.instance.addObserver(this);
-    
+
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       Get.find<AuthController>().getProfile();
       Get.find<AuthController>().getNotificationCount(); // Load notification count
@@ -60,12 +59,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       //Get.find<AuthController>().GetDashboard(authController.loginResponse!.data!= null ?authController.loginResponse!.data!.type.toString():);
       setState(() {});
     });
+    
+    // Add delayed call log processing to avoid startup issues
+    Future.delayed(Duration(seconds: 2), () {
+      sendCallLogsToAPI();
+    });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
+
     // When the app comes back to focus/resume, refresh notification count
     if (state == AppLifecycleState.resumed) {
       _refreshNotificationCount();
@@ -93,8 +97,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   List<Map<String, dynamic>> convertCallLogsForApi(
-    Iterable<CallLogEntry> entries,
-  ) {
+      Iterable<CallLogEntry> entries,
+      ) {
     return entries.map((entry) {
       final dateTime = DateTime.fromMillisecondsSinceEpoch(
         entry.timestamp ?? 0,
@@ -129,10 +133,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> sendCallLogsToAPI() async {
-    final Iterable<CallLogEntry> logs = await fetchAllCallLogs();
-    final data = convertCallLogsForApi(logs);
-
-    await Get.find<AuthController>().getCallMultiPle(multiplecallData: data);
+    try {
+      final Iterable<CallLogEntry> logs = await fetchAllCallLogs();
+      final data = convertCallLogsForApi(logs);
+      await Get.find<AuthController>().getCallMultiPle(multiplecallData: data);
+    } catch (e) {
+      print('Call log error (expected on simulators): $e');
+      // This is normal on simulators or platforms that don't support call logs
+    }
   }
 
   String? clientType;
@@ -184,8 +192,28 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   /// Always get current value for use
   void _handleClientId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? savedType = prefs.getString('client_type');
+    
+    // If no saved type exists, try to get from user profile
+    if (savedType == null || savedType == 'null' || savedType == '0') {
+      var authController = Get.find<AuthController>();
+      if (authController.profileResponse?.data?.type != null) {
+        savedType = authController.profileResponse!.data!.type.toString();
+        await prefs.setString('client_type', savedType);
+      } else {
+        // Fallback to user type from auth
+        String userType = authController.Repo.getUserType();
+        if (userType.isNotEmpty) {
+          savedType = userType;
+          await prefs.setString('client_type', savedType);
+        } else {
+          savedType = 'user'; // default fallback
+        }
+      }
+    }
+    
     setState(() {
-      clientType = prefs.getString('client_type') ?? '0';
+      clientType = savedType ?? 'user';
       print("📦 Using client_type: $clientType");
     });
   }
@@ -262,7 +290,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         ),
         actions: [
           Text(
-            clientType.toString(),
+            authController.profileResponse?.data?.type ?? clientType.toString(),
             style: TextStyle(
               color: Colors.white,
               fontSize: 14,
@@ -306,42 +334,42 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     children: [
                       clientType.toString() == "manager"
                           ? Row(
-                            children: [
-                              Icon(
-                                CupertinoIcons.person,
-                                color: Colors.brown,
-                                size: 20,
+                        children: [
+                          Icon(
+                            CupertinoIcons.person,
+                            color: Colors.brown,
+                            size: 20,
+                          ),
+                          SizedBox(width: 10),
+                          InkWell(
+                            onTap: () async {
+                              await authController.GetAllUser(
+                                name: '',
+                                mobile: '',
+                                email: '',
+                                status: '',
+                                limit: '10000',
+                                // fetch all for pagination
+                                offset: '0',
+                              );
+                              Get.to(
+                                UserLists(),
+                                transition: Transition.fadeIn,
+                                duration: Duration(milliseconds: 100),
+                              );
+                            },
+                            child: Text(
+                              "User List  ",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w400,
+                                fontStyle: FontStyle.italic,
                               ),
-                              SizedBox(width: 10),
-                              InkWell(
-                                onTap: () async {
-                                  await authController.GetAllUser(
-                                    name: '',
-                                    mobile: '',
-                                    email: '',
-                                    status: '',
-                                    limit: '10000',
-                                    // fetch all for pagination
-                                    offset: '0',
-                                  );
-                                  Get.to(
-                                    UserLists(),
-                                    transition: Transition.fadeIn,
-                                    duration: Duration(milliseconds: 100),
-                                  );
-                                },
-                                child: Text(
-                                  "User List  ",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w400,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
+                            ),
+                          ),
+                        ],
+                      )
                           : SizedBox.shrink(),
                       clientType.toString() == "manager"
                           ? Divider(color: Colors.white, thickness: 1)
@@ -370,6 +398,57 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             },
                             child: Text("Top Performance",style: TextStyle(color:Color(0xff233f6e),fontSize: 18,fontWeight: FontWeight.w500),)),
                         SizedBox(height: 15,),*/
+
+                      Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.group,
+                            color: Colors.blueAccent,
+                            size: 30,
+                          ),
+                          SizedBox(width: 10),
+                          InkWell(
+                            onTap: () async {
+                              await authController.GetAllClient(
+                                name: '',
+                                fname: '',
+                                mobile: '',
+                                email: '',
+                                from_date: '',
+                                to_date: '',
+                                last_date: '',
+                                search: '',
+                                status: '',
+                                location: '',
+                                source: '',
+                                limit: '10000',
+                                // fetch all for pagination
+                                offset: '0',
+                                agent_id: '',
+                              );
+                              // Get.to(
+                              //   AllClient(),
+                              //   transition: Transition.fadeIn,
+                              //   duration: Duration(milliseconds: 100),
+                              // );
+
+                              setState(() {});
+                            },
+                            child: Text(
+                              "User list",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w400,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Divider(color: Colors.white, thickness: 1),
+                      SizedBox(height: 5),
+
                       Row(
                         children: [
                           Icon(
@@ -702,59 +781,59 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       Divider(color: Colors.white, thickness: 1),
                       SizedBox(height: 5),
 
-                Row(
-                  children: [
-                    const Icon(
-                      CupertinoIcons.chat_bubble_text,
-                      color: Colors.blue,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
+                      Row(
+                        children: [
+                          const Icon(
+                            CupertinoIcons.chat_bubble_text,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
 
-                    InkWell(
-                      onTap: () async {
-                        // Optional: loader show karo
-                        // Get.dialog(Center(child: CircularProgressIndicator()), barrierDismissible: false);
+                          InkWell(
+                            onTap: () async {
+                              // Optional: loader show karo
+                              // Get.dialog(Center(child: CircularProgressIndicator()), barrierDismissible: false);
 
-                        await authController.GetAllClient(
-                          name: '',
-                          fname: '',
-                          mobile: '',
-                          email: '',
-                          from_date: '',
-                          to_date: '',
-                          last_date: '',
-                          search: '',
-                          status: '2',
-                          location: '',
-                          source: '',
-                          limit: '10000',
-                          offset: '0',
-                          agent_id: '',
-                        );
+                              await authController.GetAllClient(
+                                name: '',
+                                fname: '',
+                                mobile: '',
+                                email: '',
+                                from_date: '',
+                                to_date: '',
+                                last_date: '',
+                                search: '',
+                                status: '2',
+                                location: '',
+                                source: '',
+                                limit: '10000',
+                                offset: '0',
+                                agent_id: '',
+                              );
 
-                        // Optional: loader close
-                        // Get.back();
+                              // Optional: loader close
+                              // Get.back();
 
-                        Get.to(
-                          const ChatDashboard(),
-                          transition: Transition.fadeIn,
-                          duration: const Duration(milliseconds: 200),
-                        );
-                      },
-                      child: const Text(
-                        "Chat",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w400,
-                          fontStyle: FontStyle.italic,
-                        ),
+                              Get.to(
+                                const ChatDashboard(),
+                                transition: Transition.fadeIn,
+                                duration: const Duration(milliseconds: 200),
+                              );
+                            },
+                            child: const Text(
+                              "Chat",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w400,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                Divider(color: Colors.white, thickness: 1),
+                      Divider(color: Colors.white, thickness: 1),
                       SizedBox(height: 5),
 
                       /*InkWell(
@@ -781,11 +860,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             AppColor.White,
                           ),
                           shape:
-                              MaterialStateProperty.all<RoundedRectangleBorder>(
-                                RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
+                          MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
                         ),
                         onPressed: () {
                           setState(() {
@@ -818,7 +897,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           if (authController.notificationCounterResponse?.totalCount != null) {
             currentNotificationCount = authController.notificationCounterResponse!.totalCount!.toInt();
           }
-          
+
           return Stack(
             clipBehavior: Clip.none,
             children: [
@@ -829,7 +908,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 backgroundColor: const Color(0xFF223e6d),
                 child: const Icon(Icons.notifications, color: Colors.white),
               ),
-              
+
               // 🔴 Notification Badge
               if (currentNotificationCount > 0)
                 Positioned(
@@ -862,7 +941,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           );
         },
       ),
-      
+
       body: GetBuilder<AuthController>(
         builder: (authController) {
           return Container(
@@ -882,99 +961,95 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        clientType.toString() == "manager"
-                            ? InkWell(
-                              onTap: () async {
-                                await authController.GetAllUser(
-                                  name: '',
-                                  mobile: '',
-                                  email: '',
-                                  status: '',
-                                  limit: '10000',
-                                  // fetch all for pagination
-                                  offset: '0',
-                                );
-                                Get.to(
-                                  UserLists(),
-                                  transition: Transition.fadeIn,
-                                  duration: Duration(milliseconds: 100),
-                                );
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                  color: AppColor.White,
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 15,
-                                    vertical: 15,
+                        InkWell(
+                          onTap: () async {
+                            await authController.GetAllUser(
+                              name: '',
+                              mobile: '',
+                              email: '',
+                              status: '',
+                              limit: '10000',
+                              // fetch all for pagination
+                              offset: '0',
+                            );
+                            Get.to(
+                              UserLists(),
+                              transition: Transition.fadeIn,
+                              duration: Duration(milliseconds: 100),
+                            );
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: AppColor.White,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 15,
+                                vertical: 15,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    CupertinoIcons.person,
+                                    color: Colors.brown,
+                                    size: 35,
                                   ),
-                                  child: Row(
+                                  SizedBox(width: 20),
+                                  Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                     children: [
-                                      Icon(
-                                        CupertinoIcons.person,
-                                        color: Colors.brown,
-                                        size: 35,
-                                      ),
-                                      SizedBox(width: 20),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            "Total Users",
-                                            style: TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w500,
-                                              fontFamily: "Montserrat",
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          Text(
-                                            "All Users",
-                                            style: TextStyle(
-                                              color: AppColor.AuthhintColor,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w400,
-                                              fontFamily: "Montserrat",
-                                              fontStyle: FontStyle.italic,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ],
-                                      ),
-                                      Spacer(),
                                       Text(
-                                        authController
-                                                    .Dashboardresponse!
-                                                    .data !=
-                                                null
-                                            ? authController
-                                                .Dashboardresponse!
-                                                .data!
-                                                .totalUsers
-                                                .toString()
-                                            : "0",
+                                        "Total Users",
                                         style: TextStyle(
                                           color: Colors.black,
-                                          fontSize: 18,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.w500,
                                           fontFamily: "Montserrat",
                                         ),
+                                        textAlign: TextAlign.center,
                                       ),
-                                      SizedBox(width: 20),
+                                      Text(
+                                        "All Users",
+                                        style: TextStyle(
+                                          color: AppColor.AuthhintColor,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w400,
+                                          fontFamily: "Montserrat",
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
                                     ],
                                   ),
-                                ),
+                                  Spacer(),
+                                  Text(
+                                    authController
+                                        .Dashboardresponse!
+                                        .data !=
+                                        null
+                                        ? authController
+                                        .Dashboardresponse!
+                                        .data!
+                                        .totalUsers?.toString() ?? "0"
+                                        : "0",
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w500,
+                                      fontFamily: "Montserrat",
+                                    ),
+                                  ),
+                                  SizedBox(width: 20),
+                                ],
                               ),
-                            )
-                            : SizedBox.shrink(),
+                            ),
+                          ),
+                        ),
                         clientType.toString() == "manager"
                             ? SizedBox(height: 10)
                             : SizedBox.shrink(),
-
                         InkWell(
                           onTap: () {
                             // Get.to(PaginationDemo());
@@ -999,7 +1074,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   SizedBox(width: 20),
                                   Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "Current Month Clients",
@@ -1027,12 +1102,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   Spacer(),
                                   Text(
                                     authController.Dashboardresponse!.data !=
-                                            null
+                                        null
                                         ? authController
-                                            .Dashboardresponse!
-                                            .data!
-                                            .totalCurrentMonthClients
-                                            .toString()
+                                        .Dashboardresponse!
+                                        .data!
+                                        .totalCurrentMonthClients
+                                        .toString()
                                         : "0",
                                     style: TextStyle(
                                       color: Colors.black,
@@ -1095,7 +1170,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   SizedBox(width: 20),
                                   Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "Total Clients",
@@ -1121,12 +1196,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   Spacer(),
                                   Text(
                                     authController.Dashboardresponse!.data !=
-                                            null
+                                        null
                                         ? authController
-                                            .Dashboardresponse!
-                                            .data!
-                                            .totalClients
-                                            .toString()
+                                        .Dashboardresponse!
+                                        .data!
+                                        .totalClients
+                                        .toString()
                                         : "0",
                                     style: TextStyle(
                                       color: Colors.black,
@@ -1188,7 +1263,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   SizedBox(width: 20),
                                   Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "Total Followup Clients",
@@ -1213,12 +1288,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   Spacer(),
                                   Text(
                                     authController.Dashboardresponse!.data !=
-                                            null
+                                        null
                                         ? authController
-                                            .Dashboardresponse!
-                                            .data!
-                                            .getTotalFollowupClients
-                                            .toString()
+                                        .Dashboardresponse!
+                                        .data!
+                                        .getTotalFollowupClients
+                                        .toString()
                                         : "0",
                                     style: TextStyle(
                                       color: Colors.black,
@@ -1281,7 +1356,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   SizedBox(width: 20),
                                   Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "Total Important Clients",
@@ -1307,12 +1382,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   Spacer(),
                                   Text(
                                     authController.Dashboardresponse!.data !=
-                                            null
+                                        null
                                         ? authController
-                                            .Dashboardresponse!
-                                            .data!
-                                            .totalImportantClients
-                                            .toString()
+                                        .Dashboardresponse!
+                                        .data!
+                                        .totalImportantClients
+                                        .toString()
                                         : "0",
                                     style: TextStyle(
                                       color: Colors.black,
@@ -1375,7 +1450,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   SizedBox(width: 20),
                                   Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "Total Warm Clients",
@@ -1401,12 +1476,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   Spacer(),
                                   Text(
                                     authController.Dashboardresponse!.data !=
-                                            null
+                                        null
                                         ? authController
-                                            .Dashboardresponse!
-                                            .data!
-                                            .totalWarmClients
-                                            .toString()
+                                        .Dashboardresponse!
+                                        .data!
+                                        .totalWarmClients
+                                        .toString()
                                         : "0",
                                     style: TextStyle(
                                       color: Colors.black,
@@ -1469,7 +1544,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   SizedBox(width: 20),
                                   Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "Total Cold Clients",
@@ -1495,12 +1570,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   Spacer(),
                                   Text(
                                     authController.Dashboardresponse!.data !=
-                                            null
+                                        null
                                         ? authController
-                                            .Dashboardresponse!
-                                            .data!
-                                            .totalColdClients
-                                            .toString()
+                                        .Dashboardresponse!
+                                        .data!
+                                        .totalColdClients
+                                        .toString()
                                         : "0",
                                     style: TextStyle(
                                       color: Colors.black,
@@ -1563,7 +1638,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   SizedBox(width: 20),
                                   Column(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "Total Dead Clients",
@@ -1589,12 +1664,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                   Spacer(),
                                   Text(
                                     authController.Dashboardresponse!.data !=
-                                            null
+                                        null
                                         ? authController
-                                            .Dashboardresponse!
-                                            .data!
-                                            .totalDeadClients
-                                            .toString()
+                                        .Dashboardresponse!
+                                        .data!
+                                        .totalDeadClients
+                                        .toString()
                                         : "0",
                                     style: TextStyle(
                                       color: Colors.black,
@@ -1612,6 +1687,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
+
                 ],
               ),
             ),
@@ -1621,3 +1697,4 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 }
+

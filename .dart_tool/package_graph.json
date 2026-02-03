@@ -11,6 +11,7 @@
         "android_intent_plus",
         "cached_network_image",
         "call_log",
+        "country_code_picker",
         "cupertino_icons",
         "device_info_plus",
         "dropdown_button2",
@@ -56,6 +57,15 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "country_code_picker",
+      "version": "3.4.1",
+      "dependencies": [
+        "collection",
+        "diacritic",
+        "flutter"
       ]
     },
     {
@@ -343,6 +353,11 @@
         "string_scanner",
         "term_glyph"
       ]
+    },
+    {
+      "name": "diacritic",
+      "version": "0.1.6",
+      "dependencies": []
     },
     {
       "name": "js",

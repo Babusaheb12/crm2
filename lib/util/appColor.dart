@@ -18,6 +18,14 @@ class AppColor{
   static Color White = Colors.white;
   static Color Black = Colors.black;
 
+  ////
+
+  // static const Color Background = Color(0xFFF5F5F5);
+  // static const Color White = Colors.white;
+  // static const Color Black = Colors.black;
+  // static const Color AuthhintColor = Colors.grey;
+  // static const Color ButtonColor2 = Color(0xFF223e6d);
+
 }
 
 

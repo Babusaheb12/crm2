@@ -9,6 +9,8 @@ class AppContants
   static String token = "Auth Token";
   static String userDeviceID = "User Device Token";
   static String baseURl = "";
+  static String userType = "user_type";
+  static String userRole = "user_role";
 
 
   static String changeDateFormat(String date,String format)

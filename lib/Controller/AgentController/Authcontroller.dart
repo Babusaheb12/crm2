@@ -1,7 +1,8 @@
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:get/get.dart';
+
+import '../../Screens/Home/MainHomePage.dart';
 import 'package:get/get_connect/http/src/response/response.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_state_manager/src/rx_flutter/rx_disposable.dart';
@@ -13,6 +14,8 @@ import '../../Repo/AgentRepo/Authrepo.dart';
 import '../../Response/AgentResponse/ActivityDetailsResponse.dart';
 import '../../Response/AgentResponse/ActivityResponse.dart';
 import '../../Response/AgentResponse/AddClientResponse.dart';
+import '../../Response/AgentResponse/AddUserResponse.dart';
+import '../../Response/AgentResponse/AllHrUserResponse.dart';
 import '../../Response/AgentResponse/AddCommentResponse.dart';
 import '../../Response/AgentResponse/AllClientResponse.dart';
 import '../../Response/AgentResponse/AllCommentResponse.dart';
@@ -34,10 +37,12 @@ import '../../Response/AgentResponse/WhatappsResponse.dart';
 import '../../Response/AgentResponse/dashboard.dart';
 import '../../Screens/Auth/LoginPage.dart';
 import '../../Screens/Home/MainHomePage.dart';
+import '../../Screens/Home/RoleDashboard/manager/HrUser.dart';
+import '../../Screens/Home/RoleDashboard/manager/devloperManager.dart';
 import '../../Screens/Home/ViewActivity.dart';
+import '../../Screens/Home/RoleDashboard/manager/hrDashboard.dart';
 import '../../util/custom_snackbar.dart';
 import '../DashboardController.dart';
-
 
 class AuthController extends GetxController implements GetxService {
   AuthRepo Repo;
@@ -64,34 +69,48 @@ class AuthController extends GetxController implements GetxService {
   bool isLoading2 = false;
   bool isLoading1 = false;
   bool isLoading = false;
+  bool initialNavigationCompleted = false;
 
   LoginResponse? loginResponse = LoginResponse();
-  Future<void> LoginResponceFunction(String email, String password,) async {
+  Future<void> LoginResponceFunction(String email, String password) async {
     isLoading1 = true;
     update();
-    Response response = await Repo.login(
-        email: email!,
-        password: password!
-    );
+    Response response = await Repo.login(email: email!, password: password!);
     print('response.body=>${response.body}');
     if (response.body["status"] == '200') {
       Repo.saveUserPassword(password);
-      loginResponse = LoginResponse.fromJson(response.body); // Ensure correct parsing
+      loginResponse = LoginResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
       showCustomSnackBar(
-          response.body["message"], getXSnackBar: false, isError: false);
+        response.body["message"],
+        getXSnackBar: false,
+        isError: false,
+      );
       // Extract user ID from the response and save it along with the token
-      int? userId = int.tryParse(response.body["data"]["userid"]?.toString() ?? "0");
+      int? userId = int.tryParse(
+        response.body["data"]["userid"]?.toString() ?? "0",
+      );
       Repo.saveUserToken(response.body["data"]["token"], userId);
-      //Get.offAllNamed(RouteHelper.homeView);
-      Get.offAll(() => Mainhome());
 
+      // Save user type and role
+      String userType = response.body["data"]["type"]?.toString() ?? "";
+      String userRole = response.body["data"]["role"]?.toString() ?? "";
+      Repo.saveUserTypeAndRole(userType, userRole);
+      print("✅ Saved user type: $userType, role: $userRole");
 
-    }
-    else {
+      // Reset the navigation flag so that GetDashboard can handle navigation
+      initialNavigationCompleted = false;
+
+      // Call the dashboard API which will handle navigation
+      Get.find<AuthController>().GetDashboard(userType);
+    } else {
       // Handle case where status is not 200 but the status code is 200
       showCustomSnackBar(
-          response.body['message'] ?? 'Login failed', getXSnackBar: false,
-          isError: true);
+        response.body['message'] ?? 'Login failed',
+        getXSnackBar: false,
+        isError: true,
+      );
     }
     isLoading1 = false;
     update();
@@ -106,18 +125,26 @@ class AuthController extends GetxController implements GetxService {
 
     if (response.body["status"] == '200') {
       try {
-        profileResponse = ProfileResponse.fromJson(response.body); // Ensure correct parsing
+        profileResponse = ProfileResponse.fromJson(
+          response.body,
+        ); // Ensure correct parsing
         update(); // Update UI after processing
       } catch (e) {
         print("Error parsing response: $e");
         // Handle the error appropriately
       }
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else {
       // Handle error cases appropriately
     }
 
@@ -125,35 +152,67 @@ class AuthController extends GetxController implements GetxService {
     update(); // Final update call
   }
 
-
   Dashboard? Dashboardresponse = Dashboard();
   Future<void> GetDashboard(String type) async {
     isLoading2 = true;
     update();
-    Response response = await Repo.Dashboards(
-        type: type!,
-
-    );
+    Response response = await Repo.Dashboards(type: type!);
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      Dashboardresponse = Dashboard.fromJson(response.body); // Ensure correct parsing
+      Dashboardresponse = Dashboard.fromJson(
+        response.body,
+      ); // Ensure correct parsing
 
-    /*  showCustomSnackBar(
-          response.body["message"], getXSnackBar: false, isError: false);*/
-      //Repo.saveUserToken(response.body["data"]["token"]);
-      //Get.offAll(() => Mainhome());
+      // Only navigate if this is the first time calling GetDashboard after login
+      if (!initialNavigationCompleted) {
+        initialNavigationCompleted = true;
+        // Determine dashboard based on user role and type
+        String userRole = Repo.getUserRole().toLowerCase();
+        String userType = Repo.getUserType().toLowerCase();
 
+        if (userRole == "hr" && userType == "manager") {
+          // Navigate to HR dashboard
+          Get.offAll(() => HomePageHr());
 
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else {
+        }else if (userRole == "hr" && userType == "user") {
+          // Sales User dashboard
+          Get.offAll(() => HomePageHrUser());
+
+        }else if (userRole == "sales" && userType == "user") {
+          // Sales User dashboard
+          Get.offAll(() => Mainhome());
+
+        }else if (userRole == "sales" && userType == "manager") {
+          // Sales User dashboard
+          Get.offAll(() => Mainhome());
+        }else if (userRole == "developer" && userType == "manager") { // user
+          // Sales User dashboard
+          Get.offAll(() => HomePageDevloperManager());
+
+        }else if (userRole == "developer" && userType == "user") {
+          // Sales User dashboard
+          Get.offAll(() => HomePageDevloperManager());
+
+        } else {
+          // Navigate to normal dashboard
+          Get.offAll(() => HomePageDevloperManager());
+        }
+      }
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else {
       // Handle case where status is not 200 but the status code is 200
-     /* showCustomSnackBar(
+      /* showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
           isError: true);*/
     }
@@ -161,8 +220,244 @@ class AuthController extends GetxController implements GetxService {
     update();
   }
 
-
   AddClientResponse? addClientResponse = AddClientResponse();
+  AddUserResponse? addUserResponse = AddUserResponse();
+  AllHrUserResponse? allHrUserResponse = AllHrUserResponse();
+
+  Future<void> GetAllHrUser({
+    required String fname,
+    required String mobile,
+    required String email,
+    required String keyword,
+    required String limit,
+    required String offset,
+    required String status,
+    bool showLoading = true,
+  }) async {
+    if (showLoading) {
+      isLoading4 = true;
+      update();
+    }
+
+    print(
+      'Controller: Calling GetAllHrUser API with fname: $fname, email: $email, mobile: $mobile, keyword: $keyword',
+    );
+
+    try {
+      Response response = await Repo.AllHrUser(
+        fname: fname,
+        mobile: mobile,
+        email: email,
+        keyword: keyword,
+        limit: limit,
+        offset: offset,
+        status: status,
+      );
+
+      print(
+        'Controller: GetAllHrUser API response received - Status: ${response.statusCode}, Body: ${response.body}',
+      );
+
+      if (response.body["status"] == '200') {
+        allHrUserResponse = AllHrUserResponse.fromJson(response.body);
+        print(
+          'Successfully loaded ${allHrUserResponse?.totalCount ?? 0} HR users',
+        );
+      } else if (response.body["message"] == "Invalid Token") {
+        Get.to(
+          LoginPage(),
+          transition: Transition.fadeIn,
+          duration: Duration(milliseconds: 100),
+        );
+        showCustomSnackBar(
+          response.body["message"],
+          getXSnackBar: false,
+          isError: true,
+        );
+      } else {
+        // Handle error case
+        String errorMessage =
+            response.body["message"] ?? "Failed to load HR users";
+        showCustomSnackBar(errorMessage, getXSnackBar: false, isError: true);
+      }
+    } catch (e) {
+      print('Error in GetAllHrUser: $e');
+      showCustomSnackBar(
+        'Network error occurred',
+        getXSnackBar: false,
+        isError: true,
+      );
+    }
+
+    if (showLoading) {
+      isLoading4 = false;
+    }
+    update();
+  }
+
+  Future<bool> UpdateHrUserStatus({
+    required String user_id,
+    required String status,
+  }) async {
+    // 1. Optimistic Update: Update local state immediately
+    if (allHrUserResponse?.data != null) {
+      for (var user in allHrUserResponse!.data!) {
+        if (user.id.toString() == user_id) {
+          user.status = status;
+          break;
+        }
+      }
+      update(); // Rebuild UI immediately
+    }
+
+    try {
+      Response response = await Repo.UpdateHrUserStatus(
+        user_id: user_id,
+        status: status,
+      );
+      if (response.body["status"] == '200') {
+        // Refresh list silently
+        await GetAllHrUser(
+          fname: '',
+          mobile: '',
+          email: '',
+          keyword: '',
+          limit: '100',
+          offset: '0',
+          status: '',
+          showLoading: false,
+        );
+        return true;
+      } else {
+        // Revert status if failed (optional but recommended)
+        // For now, showing error
+        showCustomSnackBar(
+          response.body["message"] ?? "Failed to update status",
+          getXSnackBar: false,
+          isError: true,
+        );
+        return false;
+      }
+    } catch (e) {
+      print(e);
+      showCustomSnackBar(
+        "Error updating status",
+        getXSnackBar: false,
+        isError: true,
+      );
+      return false;
+    }
+    // No need to call update() here as GetAllHrUser calls it,
+    // and we already called it for optimistic update.
+  }
+
+  Future<bool> DeleteHrUser({required String user_id}) async {
+    // 1. Optimistic Update: Remove from local list immediately
+    if (allHrUserResponse?.data != null) {
+      allHrUserResponse!.data!.removeWhere(
+        (user) => user.id.toString() == user_id,
+      );
+      update(); // Rebuild UI immediately
+    }
+
+    try {
+      Response response = await Repo.DeleteHrUser(user_id: user_id);
+      if (response.body["status"] == '200') {
+        // Refresh list silently
+        await GetAllHrUser(
+          fname: '',
+          mobile: '',
+          email: '',
+          keyword: '',
+          limit: '100',
+          offset: '0',
+          status: '',
+          showLoading: false,
+        );
+        return true;
+      } else {
+        showCustomSnackBar(
+          response.body["message"] ?? "Failed to delete user",
+          getXSnackBar: false,
+          isError: true,
+        );
+        // Optionally reload list if delete failed to restore item
+        await GetAllHrUser(
+          fname: '',
+          mobile: '',
+          email: '',
+          keyword: '',
+          limit: '100',
+          offset: '0',
+          status: '',
+          showLoading: false,
+        );
+        return false;
+      }
+    } catch (e) {
+      print(e);
+      showCustomSnackBar(
+        "Error deleting user",
+        getXSnackBar: false,
+        isError: true,
+      );
+      return false;
+    }
+  }
+
+  Future<void> GetAddUser({
+    required String fname,
+    required String email,
+    required String mobile,
+    required String password,
+  }) async {
+    isLoading3 = true;
+    update();
+
+    print(
+      'Controller: Calling AddUser API with fname: $fname, email: $email, mobile: $mobile',
+    );
+
+    Response response = await Repo.AddUser(
+      fname: fname,
+      email: email,
+      mobile: mobile,
+      password: password,
+    );
+
+    print(
+      'Controller: AddUser API response received - Status: ${response.statusCode}, Body: ${response.body}',
+    );
+
+    if (response.body["status"] == '200') {
+      addUserResponse = AddUserResponse.fromJson(response.body);
+      showCustomSnackBar(
+        response.body["message"] ?? "User added successfully",
+        getXSnackBar: false,
+        isError: false,
+      );
+      Get.back(); // Navigate back after successful addition
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else {
+      // Handle error case
+      String errorMessage = response.body["message"] ?? "Failed to add user";
+      showCustomSnackBar(errorMessage, getXSnackBar: false, isError: true);
+    }
+
+    isLoading3 = false;
+    update();
+  }
+
   Future<void> GetAddClient({
     required String name,
     required String email,
@@ -172,8 +467,8 @@ class AuthController extends GetxController implements GetxService {
     required String location,
     required String source,
     required String skype,
-    required String comment,})
-  async {
+    required String comment,
+  }) async {
     isLoading3 = true;
     update();
     Response response = await Repo.AddClient(
@@ -186,35 +481,39 @@ class AuthController extends GetxController implements GetxService {
       source: source!,
       skype: skype!,
       comment: comment!,
-
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
       addClientResponse = AddClientResponse.fromJson(response.body);
-      Get.to(Mainhome());// Ensure correct parsing
+      Get.to(Mainhome()); // Ensure correct parsing
 
       showCustomSnackBar(
-          response.body["Client add successfully"], getXSnackBar: false, isError: false);
+        response.body["Client add successfully"],
+        getXSnackBar: false,
+        isError: false,
+      );
       //Repo.saveUserToken(response.body["data"]["token"]);
-
-
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else {
       // Handle case where status is not 200 but the status code is 200
-     /* showCustomSnackBar(
+      /* showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
           isError: true);*/
     }
     isLoading3 = false;
     update();
   }
-
 
   //WarmResponse? warmResponse = WarmResponse();
   AllClientResponse? allClientResponse = AllClientResponse();
@@ -235,7 +534,7 @@ class AuthController extends GetxController implements GetxService {
     required String agent_id,
   }) async {
     isLoading4 = true;
-    allClientResponse?.data?.clear();  // if `data` is already initialized
+    allClientResponse?.data?.clear(); // if `data` is already initialized
     allClientResponse = AllClientResponse(); // or reinitialize
 
     update();
@@ -261,20 +560,24 @@ class AuthController extends GetxController implements GetxService {
     if (response.body["status"].toString() == "200") {
       allClientResponse = AllClientResponse.fromJson(response.body);
       //showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-
-    else if (response.body["status"].toString() == "404") {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else if (response.body["status"].toString() == "404") {
       allClientResponse = AllClientResponse.fromJson(response.body);
     }
 
     isLoading4 = false;
     update();
   }
-
 
   UpdateClientResponse? updateClientResponse = UpdateClientResponse();
   Future<void> GetUpdateClient({
@@ -287,8 +590,8 @@ class AuthController extends GetxController implements GetxService {
     required String location,
     required String source,
     required String skype,
-    required String comment,})
-  async {
+    required String comment,
+  }) async {
     isLoading5 = true;
     update();
     Response response = await Repo.UpdateClient(
@@ -302,23 +605,24 @@ class AuthController extends GetxController implements GetxService {
       source: source!,
       skype: skype!,
       comment: source!,
-
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      updateClientResponse = UpdateClientResponse.fromJson(response.body); // Ensure correct parsing
+      updateClientResponse = UpdateClientResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
 
-      showCustomSnackBar(response.body["Update client add successfully"], getXSnackBar: false, isError: false);
+      showCustomSnackBar(
+        response.body["Update client add successfully"],
+        getXSnackBar: false,
+        isError: false,
+      );
       Get.back();
       //Repo.saveUserToken(response.body["data"]["token"]);
-
-
-    }
-    else {
+    } else {
       // Handle case where status is not 200 but the status code is 200
-    /*  showCustomSnackBar(
+      /*  showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
           isError: true);*/
     }
@@ -330,8 +634,7 @@ class AuthController extends GetxController implements GetxService {
   Future<void> GetChangeStatus({
     required String client_id,
     required String status,
-   })
-  async {
+  }) async {
     isLoading6 = true;
     update();
     Response response = await Repo.ChangeStatus(
@@ -340,18 +643,21 @@ class AuthController extends GetxController implements GetxService {
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-
-      changeStatusResponse = ChangeStatusResponse.fromJson(response.body); // Ensure correct parsing
-      showCustomSnackBar(response.body["Status update successfully"], getXSnackBar: false, isError: false);
+      changeStatusResponse = ChangeStatusResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
+      showCustomSnackBar(
+        response.body["Status update successfully"],
+        getXSnackBar: false,
+        isError: false,
+      );
       //Repo.saveUserToken(response.body["data"]["token"]);
       //await allClientResponse;
       update();
-    }
-    else {
+    } else {
       // Handle case where status is not 200 but the status code is 200
-    /*  showCustomSnackBar(
+      /*  showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
           isError: true);*/
     }
@@ -360,31 +666,33 @@ class AuthController extends GetxController implements GetxService {
   }
 
   AllCommentResponse? allCommentResponse = AllCommentResponse();
-  Future<void> GetAllcomments({
-    required String client_id,
-   })
-  async {
+  Future<void> GetAllcomments({required String client_id}) async {
     isLoading7 = true;
     allCommentResponse = null;
     update();
-    Response response = await Repo.Allcomments(
-      client_id: client_id!,
-    );
+    Response response = await Repo.Allcomments(client_id: client_id!);
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      allCommentResponse = AllCommentResponse.fromJson(response.body); // Ensure correct parsing
+      allCommentResponse = AllCommentResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
       //showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
       //Repo.saveUserToken(response.body["data"]["token"]);
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else if (response.body["status"].toString() == "404") {
-      allCommentResponse = AllCommentResponse.fromJson(response.body);}
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else if (response.body["status"].toString() == "404") {
+      allCommentResponse = AllCommentResponse.fromJson(response.body);
+    } else {
       /*showCustomSnackBar(response.body['message'] ?? 'Login failed', getXSnackBar: false,
           isError: true);*/
     }
@@ -393,35 +701,35 @@ class AuthController extends GetxController implements GetxService {
   }
 
   ClientDetailsResponse? clientDetailsResponse = ClientDetailsResponse();
-  Future<void> GetClientDetails({
-    required String client_id,
-   })
-  async {
+  Future<void> GetClientDetails({required String client_id}) async {
     isLoading8 = true;
     update();
-    Response response = await Repo.ClientDetails(
-      client_id: client_id!,
-    );
+    Response response = await Repo.ClientDetails(client_id: client_id!);
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      clientDetailsResponse = ClientDetailsResponse.fromJson(response.body); // Ensure correct parsing
+      clientDetailsResponse = ClientDetailsResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
 
       //showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
       //Repo.saveUserToken(response.body["data"]["token"]);
-
-
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else if (response.body["status"].toString() == "404") {
-      clientDetailsResponse = ClientDetailsResponse.fromJson(response.body);}
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else if (response.body["status"].toString() == "404") {
+      clientDetailsResponse = ClientDetailsResponse.fromJson(response.body);
+    } else {
       // Handle case where status is not 200 but the status code is 200
-    /*  showCustomSnackBar(
+      /*  showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
           isError: true);*/
     }
@@ -433,8 +741,7 @@ class AuthController extends GetxController implements GetxService {
   Future<void> GetSetReminder({
     required String client_id,
     required String reminder_date,
-   })
-  async {
+  }) async {
     isLoading9 = true;
     update();
     Response response = await Repo.SetReminder(
@@ -443,18 +750,19 @@ class AuthController extends GetxController implements GetxService {
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      reminderResponse = ReminderResponse.fromJson(response.body); // Ensure correct parsing
+      reminderResponse = ReminderResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
 
       showCustomSnackBar(
-          response.body["Reminder add successfully"], getXSnackBar: false, isError: false);
-    //Get.back();
+        response.body["Reminder add successfully"],
+        getXSnackBar: false,
+        isError: false,
+      );
+      //Get.back();
       //Repo.saveUserToken(response.body["data"]["token"]);
-
-
-    }
-    else {
+    } else {
       // Handle case where status is not 200 but the status code is 200
       /*showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
@@ -473,9 +781,7 @@ class AuthController extends GetxController implements GetxService {
     required String client_mobile,
     required String client_name,
     required String calling_platform,
-
-   })
-  async {
+  }) async {
     isLoading10 = true;
     update();
     Response response = await Repo.AddWhatapps(
@@ -489,27 +795,24 @@ class AuthController extends GetxController implements GetxService {
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      whatappsResponse = WhatappsResponse.fromJson(response.body); // Ensure correct parsing
+      whatappsResponse = WhatappsResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
 
-     /* showCustomSnackBar(
+      /* showCustomSnackBar(
           response.body["message"], getXSnackBar: false, isError: false);*/
-    //Get.back();
+      //Get.back();
       //Repo.saveUserToken(response.body["data"]["token"]);
-
-
-    }
-    else {
+    } else {
       // Handle case where status is not 200 but the status code is 200
-     /* showCustomSnackBar(
+      /* showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
           isError: true);*/
     }
     isLoading10 = false;
     update();
   }
-
 
   CallResponse? callResponse = CallResponse();
   Future<void> GetAddCall({
@@ -522,9 +825,7 @@ class AuthController extends GetxController implements GetxService {
     required String calling_platform,
     required String calling_type,
     required String call_duration_in_second,
-
-   })
-  async {
+  }) async {
     isLoading11 = true;
     update();
     Response response = await Repo.AddCall(
@@ -540,13 +841,13 @@ class AuthController extends GetxController implements GetxService {
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      callResponse = CallResponse.fromJson(response.body); // Ensure correct parsing
+      callResponse = CallResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
 
-     // showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
-    }
-    else {
+      // showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
+    } else {
       // Handle case where status is not 200 but the status code is 200
       /*showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
@@ -555,7 +856,6 @@ class AuthController extends GetxController implements GetxService {
     isLoading11 = false;
     update();
   }
-
 
   Future<void> updateStatusAndRefreshClient({
     required String clientId,
@@ -577,15 +877,13 @@ class AuthController extends GetxController implements GetxService {
       limit: '10000',
       offset: '0',
       agent_id: '',
-
     );
   }
 
   MultipleCallResponse? multipleCallResponse = MultipleCallResponse();
   Future<void> getCallMultiPle({
     required List<Map<String, dynamic>> multiplecallData,
-  })
-  async {
+  }) async {
     isLoading12 = true;
     update();
 
@@ -600,19 +898,22 @@ class AuthController extends GetxController implements GetxService {
         multipleCallResponse = MultipleCallResponse.fromJson(response.body);
         update();
       } else if (response.body["message"] == "Invalid Token") {
-        Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
+        Get.to(
+          LoginPage(),
+          transition: Transition.fadeIn,
+          duration: Duration(milliseconds: 100),
+        );
       } else {
         update();
-      //  showCustomSnackBar(response.body['message'] ?? 'Failed', isError: true);
+        //  showCustomSnackBar(response.body['message'] ?? 'Failed', isError: true);
       }
     } catch (e) {
-    //  showCustomSnackBar('An error occurred: $e', isError: false);
+      //  showCustomSnackBar('An error occurred: $e', isError: false);
     } finally {
       isLoading12 = false;
       update();
     }
   }
-
 
   AllUserResponse? allUserResponse = AllUserResponse();
   Future<void> GetAllUser({
@@ -621,8 +922,8 @@ class AuthController extends GetxController implements GetxService {
     required String email,
     required String status,
     required String limit,
-    required String offset,})
-  async {
+    required String offset,
+  }) async {
     isLoading13 = true;
     update();
     Response response = await Repo.AllUser(
@@ -632,29 +933,34 @@ class AuthController extends GetxController implements GetxService {
       status: status!,
       limit: limit!,
       offset: offset!,
-
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"].toString() == "200") {
-      allUserResponse = AllUserResponse.fromJson(response.body); // Ensure correct parsing
+      allUserResponse = AllUserResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
 
       //showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
       //Repo.saveUserToken(response.body["data"]["token"]);
-
-
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else if (response.body["status"].toString() == "404") {
-      allUserResponse = AllUserResponse.fromJson(response.body); // Ensure correct parsing
-    }
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else if (response.body["status"].toString() == "404") {
+      allUserResponse = AllUserResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
+    } else {
       // Handle case where status is not 200 but the status code is 200
-    //  showCustomSnackBar(response.body['message'], getXSnackBar: false, isError: true);
+      //  showCustomSnackBar(response.body['message'], getXSnackBar: false, isError: true);
     }
     isLoading13 = false;
     update();
@@ -664,28 +970,28 @@ class AuthController extends GetxController implements GetxService {
   Future<void> GetAddComment({
     required String client_id,
     required String comment,
-
-  })
-  async {
+  }) async {
     isLoading14 = true;
     update();
     Response response = await Repo.AddComment(
       client_id: client_id!,
       comment: comment!,
-
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      addCommentResponse = AddCommentResponse.fromJson(response.body); // Ensure correct parsing
+      addCommentResponse = AddCommentResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
       showCustomSnackBar(
-          response.body["Comment add successfully"], getXSnackBar: false, isError: false);
+        response.body["Comment add successfully"],
+        getXSnackBar: false,
+        isError: false,
+      );
       // Get.back();
-    }
-    else {
+    } else {
       // Handle case where status is not 200 but the status code is 200
-     /* showCustomSnackBar(
+      /* showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
           isError: true);*/
     }
@@ -703,9 +1009,7 @@ class AuthController extends GetxController implements GetxService {
     required String client_email,
     required String client_name,
     required String calling_platform,
-
-  })
-  async {
+  }) async {
     isLoading15 = true;
     update();
     Response response = await Repo.AddGmails(
@@ -720,20 +1024,18 @@ class AuthController extends GetxController implements GetxService {
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      gmailResponse = GmailResponse.fromJson(response.body); // Ensure correct parsing
+      gmailResponse = GmailResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
 
-     /* showCustomSnackBar(
+      /* showCustomSnackBar(
           response.body["message"], getXSnackBar: false, isError: false);*/
       //Get.back();
       //Repo.saveUserToken(response.body["data"]["token"]);
-
-
-    }
-    else {
+    } else {
       // Handle case where status is not 200 but the status code is 200
-     /* showCustomSnackBar(
+      /* showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
           isError: true);*/
     }
@@ -752,8 +1054,7 @@ class AuthController extends GetxController implements GetxService {
     required String calling_platform,
     required String calling_type,
     required String search,
-  })
-  async {
+  }) async {
     isLoading16 = true;
     callHistoryResponse = null; // ✅ Properly resetting it before loading
     update();
@@ -775,15 +1076,22 @@ class AuthController extends GetxController implements GetxService {
     if (response.body["status"].toString() == "200") {
       callHistoryResponse = CallHistoryResponse.fromJson(response.body);
       //showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else if (response.body["status"].toString() == "404") {
-      callHistoryResponse = CallHistoryResponse.fromJson(response.body); // still set it to show "No Record Found"
-    }
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else if (response.body["status"].toString() == "404") {
+      callHistoryResponse = CallHistoryResponse.fromJson(
+        response.body,
+      ); // still set it to show "No Record Found"
+    } else {
       // Optionally handle other status codes
     }
 
@@ -796,36 +1104,44 @@ class AuthController extends GetxController implements GetxService {
     required String from_date,
     required String to_date,
     required String agent_id,
-  })
-  async {
+  }) async {
     isLoading17 = true;
     update();
     Response response = await Repo.AllActivity(
       from_date: from_date!,
       to_date: to_date!,
       agent_id: agent_id!,
-
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      activityResponse = ActivityResponse.fromJson(response.body); // Ensure correct parsing
-      Get.to(ViewActivity(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
+      activityResponse = ActivityResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
+      Get.to(
+        ViewActivity(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
 
-     // showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
+      // showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
       //Repo.saveUserToken(response.body["data"]["token"]);
-
-
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else if (response.body["status"].toString() == "404") {
-      activityResponse = ActivityResponse.fromJson(response.body); // Ensure correct parsing
-    }
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else if (response.body["status"].toString() == "404") {
+      activityResponse = ActivityResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
+    } else {
       // Handle case where status is not 200 but the status code is 200
       /*showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
@@ -850,8 +1166,7 @@ class AuthController extends GetxController implements GetxService {
     required String limit,
     required String offset,
     required String agent_id,
-  })
-  async {
+  }) async {
     isLoading18 = true;
     update();
     Response response = await Repo.FlowupClient(
@@ -868,27 +1183,32 @@ class AuthController extends GetxController implements GetxService {
       limit: limit!,
       offset: offset!,
       agent_id: agent_id!,
-
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"].toString() == "200") {
-      flowupResponse = FlowupResponse.fromJson(response.body); // Ensure correct parsing
+      flowupResponse = FlowupResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
 
-     // showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
+      // showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
       //Repo.saveUserToken(response.body["data"]["token"]);
-
-
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else if (response.body["status"].toString() == "404") {
-      flowupResponse = FlowupResponse.fromJson(response.body); // still set it to show "No Record Found"
-    }
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else if (response.body["status"].toString() == "404") {
+      flowupResponse = FlowupResponse.fromJson(
+        response.body,
+      ); // still set it to show "No Record Found"
+    } else {
       // Handle case where status is not 200 but the status code is 200
       //showCustomSnackBar(response.body['message'] ?? 'Login failed', getXSnackBar: false, isError: true);
     }
@@ -902,8 +1222,7 @@ class AuthController extends GetxController implements GetxService {
     required String to_date,
     required String agent_id,
     required String calling_type,
-  })
-  async {
+  }) async {
     isLoading19 = true;
     update();
     Response response = await Repo.DetailsActivity(
@@ -911,27 +1230,32 @@ class AuthController extends GetxController implements GetxService {
       to_date: to_date!,
       agent_id: agent_id!,
       calling_type: calling_type!,
-
     );
     print('response.body=>${response.body}');
 
-
     if (response.body["status"] == '200') {
-      activityDetailsResponse = ActivityDetailsResponse.fromJson(response.body); // Ensure correct parsing
+      activityDetailsResponse = ActivityDetailsResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
 
-     // showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
+      // showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: false);
       //Repo.saveUserToken(response.body["data"]["token"]);
-
-
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else if (response.body["status"].toString() == "404") {
-      activityDetailsResponse = ActivityDetailsResponse.fromJson(response.body); // Ensure correct parsing
-    }
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else if (response.body["status"].toString() == "404") {
+      activityDetailsResponse = ActivityDetailsResponse.fromJson(
+        response.body,
+      ); // Ensure correct parsing
+    } else {
       // Handle case where status is not 200 but the status code is 200
       /*showCustomSnackBar(
           response.body['message'] ?? 'Login failed', getXSnackBar: false,
@@ -952,14 +1276,18 @@ class AuthController extends GetxController implements GetxService {
   Future<Response> getAllChatUsers(int userId) async {
     print('API Request: Fetching all chat users for userId: $userId');
     Response response = await Repo.getAllChatUsers(userId);
-    print('API Response: getAllChatUsers - Status: ${response.statusCode}, Body: ${response.body}');
+    print(
+      'API Response: getAllChatUsers - Status: ${response.statusCode}, Body: ${response.body}',
+    );
     return response;
   }
 
   Future<Response> getChatHistory({required int user2, required int id}) async {
     print('API Request: Fetching chat history for user2: $user2, id: $id');
     Response response = await Repo.getChatHistory(user2: user2, id: id);
-    print('API Response: getChatHistory - Status: ${response.statusCode}, Body: ${response.body}');
+    print(
+      'API Response: getChatHistory - Status: ${response.statusCode}, Body: ${response.body}',
+    );
     return response;
   }
 
@@ -975,60 +1303,154 @@ class AuthController extends GetxController implements GetxService {
     print('Upload image response: ${response.body}');
     return response;
   }
-  
+
+  Future<Response> uploadResume(String filePath) async {
+    print('Calling API to upload resume: $filePath');
+    Response response = await Repo.uploadResume(filePath);
+    print('Upload resume response: ${response.body}');
+    return response;
+  }
+
+  Future<Response> addCandidate({
+    required String name,
+    required String email,
+    required String number,
+    required String countryCode,
+    required String countryName,
+    required String position,
+    required String resume,
+    required String interviewDate,
+    required String currentCtc,
+    required String expectedCtc,
+    required String exp,
+    required String remark,
+    required String status,
+  }) async {
+    print('Controller: Calling addCandidate API with data:');
+    print('  Name: $name');
+    print('  Email: $email');
+    print('  Number: $number');
+    print('  Country Code: $countryCode');
+    print('  Country Name: $countryName');
+    print('  Position: $position');
+    print('  Resume: $resume');
+    print('  Interview Date: $interviewDate');
+    print('  Current CTC: $currentCtc');
+    print('  Expected CTC: $expectedCtc');
+    print('  Experience: $exp');
+    print('  Remark: $remark');
+    print('  Status: $status');
+
+    Response response = await Repo.addCandidate(
+      name: name,
+      email: email,
+      number: number,
+      countryCode: countryCode,
+      countryName: countryName,
+      position: position,
+      resume: resume,
+      interviewDate: interviewDate,
+      currentCtc: currentCtc,
+      expectedCtc: expectedCtc,
+      exp: exp,
+      remark: remark,
+      status: status,
+    );
+
+    print(
+      'Controller: addCandidate API response - Status: ${response.statusCode}, Body: ${response.body}',
+    );
+    return response;
+  }
+
+  Future<Response> getCandidateList() async {
+    print('Controller: Calling getCandidateList API');
+
+    Response response = await Repo.getCandidateList();
+
+    print(
+      'Controller: getCandidateList API response - Status: ${response.statusCode}',
+    );
+    print('Controller: Response Body: ${response.body}');
+
+    update();
+    return response;
+  }
+
   NotificationResponse? notificationResponse = NotificationResponse();
-  NotificationCounterResponse? notificationCounterResponse = NotificationCounterResponse();
+  NotificationCounterResponse? notificationCounterResponse =
+      NotificationCounterResponse();
   Future<void> getNotifications() async {
     Response response = await Repo.getAllNotifications();
     print('Notification API Response: ${response.body}');
-    
+
     if (response.body["status"] == '200') {
       notificationResponse = NotificationResponse.fromJson(response.body);
       update();
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else {
       // Handle other error cases
       print('Error getting notifications: ${response.body}');
     }
   }
-  
+
   Future<void> getNotificationCount() async {
     Response response = await Repo.getNotificationCount();
     print('Notification Count API Response: ${response.body}');
-    
+
     if (response.body["status"] == '200') {
-      notificationCounterResponse = NotificationCounterResponse.fromJson(response.body);
+      notificationCounterResponse = NotificationCounterResponse.fromJson(
+        response.body,
+      );
       update();
-    }
-    else if (response.body["message"] == "Invalid Token"){
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-      showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-    }
-    else {
+    } else if (response.body["message"] == "Invalid Token") {
+      Get.to(
+        LoginPage(),
+        transition: Transition.fadeIn,
+        duration: Duration(milliseconds: 100),
+      );
+      showCustomSnackBar(
+        response.body["message"],
+        getXSnackBar: false,
+        isError: true,
+      );
+    } else {
       // Handle other error cases
       print('Error getting notification count: ${response.body}');
     }
   }
-  
+
   Future<void> markAllNotificationRead() async {
     try {
       Response response = await Repo.markAllNotificationRead();
       print('Mark Notification API Response: ${response.body}');
-      
+
       if (response.body["status"] == '200') {
         // Refresh notification count after marking as read
         await getNotificationCount();
         update();
-      }
-      else if (response.body["message"] == "Invalid Token"){
-        Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
-        showCustomSnackBar(response.body["message"], getXSnackBar: false, isError: true);
-      }
-      else {
+      } else if (response.body["message"] == "Invalid Token") {
+        Get.to(
+          LoginPage(),
+          transition: Transition.fadeIn,
+          duration: Duration(milliseconds: 100),
+        );
+        showCustomSnackBar(
+          response.body["message"],
+          getXSnackBar: false,
+          isError: true,
+        );
+      } else {
         // Handle other error cases - including when API returns HTML error page
         print('Error marking notification as read: ${response.body}');
         // Note: This API endpoint appears to have backend issues and returns 500 errors

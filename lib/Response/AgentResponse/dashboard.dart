@@ -55,8 +55,16 @@ class Data {
       num? totalSleepClients, 
       num? totalImportantClients, 
       num? totalCurrentMonthClients, 
-      num? getTotalFollowupClients, 
-      String? type,}){
+      num? getTotalFollowupClients,
+      // HR Dashboard fields
+      num? totalCandidate,
+      num? currentMonthTotalCandidate,
+      num? shortlistedCandidate,
+      num? interviewedCandidate,
+      num? selectedCandidate,
+      num? rejectedCandidate,
+      String? type,
+      String? role,}){
     _totalUsers = totalUsers;
     _totalClients = totalClients;
     _totalWarmClients = totalWarmClients;
@@ -66,7 +74,15 @@ class Data {
     _totalImportantClients = totalImportantClients;
     _totalCurrentMonthClients = totalCurrentMonthClients;
     _getTotalFollowupClients = getTotalFollowupClients;
+    // HR Dashboard fields
+    _totalCandidate = totalCandidate;
+    _currentMonthTotalCandidate = currentMonthTotalCandidate;
+    _shortlistedCandidate = shortlistedCandidate;
+    _interviewedCandidate = interviewedCandidate;
+    _selectedCandidate = selectedCandidate;
+    _rejectedCandidate = rejectedCandidate;
     _type = type;
+    _role = role;
 }
 
   Data.fromJson(dynamic json) {
@@ -79,7 +95,15 @@ class Data {
     _totalImportantClients = json['total_important_clients'];
     _totalCurrentMonthClients = json['total_current_month_clients'];
     _getTotalFollowupClients = json['get_total_followup_clients'];
+    // HR Dashboard fields
+    _totalCandidate = json['total_candidate'];
+    _currentMonthTotalCandidate = json['current_month_total_candidate'];
+    _shortlistedCandidate = json['shortlisted_candidate'];
+    _interviewedCandidate = json['interviewed_candidate'];
+    _selectedCandidate = json['selected_candidate'];
+    _rejectedCandidate = json['rejected_candidate'];
     _type = json['type'];
+    _role = json['role'];
   }
   num? _totalUsers;
   num? _totalClients;
@@ -90,7 +114,15 @@ class Data {
   num? _totalImportantClients;
   num? _totalCurrentMonthClients;
   num? _getTotalFollowupClients;
+  // HR Dashboard fields
+  num? _totalCandidate;
+  num? _currentMonthTotalCandidate;
+  num? _shortlistedCandidate;
+  num? _interviewedCandidate;
+  num? _selectedCandidate;
+  num? _rejectedCandidate;
   String? _type;
+  String? _role;
 Data copyWith({  num? totalUsers,
   num? totalClients,
   num? totalWarmClients,
@@ -100,7 +132,15 @@ Data copyWith({  num? totalUsers,
   num? totalImportantClients,
   num? totalCurrentMonthClients,
   num? getTotalFollowupClients,
+  // HR Dashboard fields
+  num? totalCandidate,
+  num? currentMonthTotalCandidate,
+  num? shortlistedCandidate,
+  num? interviewedCandidate,
+  num? selectedCandidate,
+  num? rejectedCandidate,
   String? type,
+  String? role,
 }) => Data(  totalUsers: totalUsers ?? _totalUsers,
   totalClients: totalClients ?? _totalClients,
   totalWarmClients: totalWarmClients ?? _totalWarmClients,
@@ -110,7 +150,15 @@ Data copyWith({  num? totalUsers,
   totalImportantClients: totalImportantClients ?? _totalImportantClients,
   totalCurrentMonthClients: totalCurrentMonthClients ?? _totalCurrentMonthClients,
   getTotalFollowupClients: getTotalFollowupClients ?? _getTotalFollowupClients,
+  // HR Dashboard fields
+  totalCandidate: totalCandidate ?? _totalCandidate,
+  currentMonthTotalCandidate: currentMonthTotalCandidate ?? _currentMonthTotalCandidate,
+  shortlistedCandidate: shortlistedCandidate ?? _shortlistedCandidate,
+  interviewedCandidate: interviewedCandidate ?? _interviewedCandidate,
+  selectedCandidate: selectedCandidate ?? _selectedCandidate,
+  rejectedCandidate: rejectedCandidate ?? _rejectedCandidate,
   type: type ?? _type,
+  role: role ?? _role,
 );
   num? get totalUsers => _totalUsers;
   num? get totalClients => _totalClients;
@@ -121,7 +169,15 @@ Data copyWith({  num? totalUsers,
   num? get totalImportantClients => _totalImportantClients;
   num? get totalCurrentMonthClients => _totalCurrentMonthClients;
   num? get getTotalFollowupClients => _getTotalFollowupClients;
+  // HR Dashboard getters
+  num? get totalCandidate => _totalCandidate;
+  num? get currentMonthTotalCandidate => _currentMonthTotalCandidate;
+  num? get shortlistedCandidate => _shortlistedCandidate;
+  num? get interviewedCandidate => _interviewedCandidate;
+  num? get selectedCandidate => _selectedCandidate;
+  num? get rejectedCandidate => _rejectedCandidate;
   String? get type => _type;
+  String? get role => _role;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -134,7 +190,15 @@ Data copyWith({  num? totalUsers,
     map['total_important_clients'] = _totalImportantClients;
     map['total_current_month_clients'] = _totalCurrentMonthClients;
     map['get_total_followup_clients'] = _getTotalFollowupClients;
+    // HR Dashboard fields
+    map['total_candidate'] = _totalCandidate;
+    map['current_month_total_candidate'] = _currentMonthTotalCandidate;
+    map['shortlisted_candidate'] = _shortlistedCandidate;
+    map['interviewed_candidate'] = _interviewedCandidate;
+    map['selected_candidate'] = _selectedCandidate;
+    map['rejected_candidate'] = _rejectedCandidate;
     map['type'] = _type;
+    map['role'] = _role;
     return map;
   }
 

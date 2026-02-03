@@ -14,6 +14,8 @@ import 'Controller/AgentController/Authcontroller.dart';
 import 'Screens/Auth/LoginPage.dart';
 import 'Screens/Home/HomePage.dart';
 import 'Screens/Home/MainHomePage.dart';
+import 'Screens/Home/RoleDashboard/manager/HrUser.dart';
+import 'Screens/Home/RoleDashboard/manager/hrDashboard.dart';
 import 'util/get.di.dart' as di;
 
 @pragma('vm:entry-point')
@@ -93,9 +95,13 @@ class _MyApp extends State<MyApp> {
         color: Colors.black,
         size: 10,
       );
-      authController.isLoggedIn() ?
-      Get.to(HomePage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100)):
-      Get.to(LoginPage(),transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
+      if (authController.isLoggedIn()) {
+        // Use the AuthController's GetDashboard method to handle navigation based on user type and role
+        String userType = authController.Repo.getUserType().toLowerCase();
+        authController.GetDashboard(userType);
+      } else {
+        Get.to(LoginPage(), transition: Transition.fadeIn, duration: Duration(milliseconds: 100));
+      }
 
      // Get.to(LoginPage());
     },);

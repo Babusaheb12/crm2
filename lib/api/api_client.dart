@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart' as Foundation;
 import 'package:http/http.dart' as Http;
 
 import '../util/app_constants.dart';
+import 'api.dart';
 
 class ApiClient extends GetxService {
   final String appBaseUrl;
@@ -182,6 +183,35 @@ class ApiClient extends GetxService {
     }
   }
 
+  Future<Response> updateCandidateStatus(String candidateId, String status) async {
+    try {
+      final String uri = '${appBaseUrl}${ApiUrls.updateCandidate}';
+      final Map<String, dynamic> body = {
+        'candidate_id': candidateId,
+        'status': status,
+      };
+      
+      if(Foundation.kDebugMode) {
+        print('====> Update Candidate Status API Call: $uri');
+        print('====> Request Body: ${jsonEncode(body)}');
+        print('====> Headers: $_mainHeaders');
+      }
+      
+      Http.Response _response = await Http.post(
+        Uri.parse(uri),
+        body: jsonEncode(body),
+        headers: _mainHeaders,
+      ).timeout(Duration(seconds: timeoutInSeconds));
+      
+      return handleResponse(_response, uri);
+    } catch (e) {
+      if(Foundation.kDebugMode) {
+        print('Update Candidate Status API Error: ${e.toString()}');
+      }
+      return Response(statusCode: 1, statusText: noInternetMessage);
+    }
+  }
+
   Future<Response> deleteData(String uri, dynamic body, {Map<String, String>? headers}) async {
     try {
       if(Foundation.kDebugMode) {
@@ -195,6 +225,34 @@ class ApiClient extends GetxService {
       ).timeout(Duration(seconds: timeoutInSeconds));
       return handleResponse(_response, uri);
     } catch (e) {
+      return Response(statusCode: 1, statusText: noInternetMessage);
+    }
+  }
+
+  Future<Response> deleteCandidate(String candidateId) async {
+    try {
+      final String uri = '${appBaseUrl}${ApiUrls.deleteCandidate}';
+      final Map<String, dynamic> body = {
+        'candidate_id': candidateId,
+      };
+      
+      if(Foundation.kDebugMode) {
+        print('====> Delete Candidate API Call: $uri');
+        print('====> Request Body: ${jsonEncode(body)}');
+        print('====> Headers: $_mainHeaders');
+      }
+      
+      Http.Response _response = await Http.post(
+        Uri.parse(uri),
+        body: jsonEncode(body),
+        headers: _mainHeaders,
+      ).timeout(Duration(seconds: timeoutInSeconds));
+      
+      return handleResponse(_response, uri);
+    } catch (e) {
+      if(Foundation.kDebugMode) {
+        print('Delete Candidate API Error: ${e.toString()}');
+      }
       return Response(statusCode: 1, statusText: noInternetMessage);
     }
   }
@@ -263,6 +321,47 @@ class ApiClient extends GetxService {
       Http.Response _response = await Http.Response.fromStream(await _request.send());
       return handleResponse(_response, uri);
     } catch (e) {
+      return Response(statusCode: 1, statusText: noInternetMessage);
+    }
+  }
+  
+  Future<Response> uploadFile(String uri, String filePath, String fieldName, {Map<String, String>? headers, String? contentType}) async {
+    try {
+      if(Foundation.kDebugMode) {
+        print('====> File Upload API Call: $uri\nHeader: $_mainHeaders\nField: $fieldName');
+      }
+      
+      Http.MultipartRequest _request = Http.MultipartRequest('POST', Uri.parse(appBaseUrl!+uri));
+      
+      // Set proper headers for multipart request, overriding the default JSON content type
+      Map<String, String> requestHeaders = {
+        ...?_mainHeaders,
+        ...?headers,
+      };
+      // Remove Content-Type if it's set to JSON since multipart will set its own
+      if (requestHeaders['Content-Type']?.contains('application/json') == true) {
+        requestHeaders.remove('Content-Type');
+      }
+      _request.headers.addAll(requestHeaders);
+      
+      // Add the file to the request
+      File file = File(filePath);
+      Uint8List _list = await file.readAsBytes();
+      String fileName = file.path.split('/').last;
+      
+      _request.files.add(Http.MultipartFile(
+        fieldName, 
+        file.readAsBytes().asStream(), 
+        _list.length,
+        filename: fileName,
+        contentType: contentType != null ? MediaType.parse(contentType) : null,
+      ));
+      
+      Http.Response _response = await Http.Response.fromStream(await _request.send());
+      print('File Upload Response: ${_response.statusCode} for $uri');
+      return handleResponse(_response, uri);
+    } catch (e) {
+      print('File Upload Error: ${e.toString()} for $uri');
       return Response(statusCode: 1, statusText: noInternetMessage);
     }
   }
